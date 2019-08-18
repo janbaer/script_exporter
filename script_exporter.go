@@ -5,15 +5,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 )
@@ -40,31 +44,29 @@ type Measurement struct {
 	Script   *Script
 	Success  int
 	Duration float64
+	Result   int
 }
 
-func runScript(script *Script) error {
+func runScript(script *Script) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(script.Timeout)*time.Second)
 	defer cancel()
 
-	bashCmd := exec.CommandContext(ctx, *shell)
-
-	bashIn, err := bashCmd.StdinPipe()
-
+	cmd := exec.CommandContext(ctx, *shell, "-c", script.Content)
+	stdOut, err := cmd.Output()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if err = bashCmd.Start(); err != nil {
-		return err
+	var result int
+	if len(stdOut) > 0 {
+		s := strings.TrimRight(string(stdOut), "\n")
+		result, err = strconv.Atoi(s)
+		if err != nil {
+			return 0, fmt.Errorf("Script %s should return a numeric value", script.Name)
+		}
 	}
 
-	if _, err = bashIn.Write([]byte(script.Content)); err != nil {
-		return err
-	}
-
-	bashIn.Close()
-
-	return bashCmd.Wait()
+	return result, nil
 }
 
 func runScripts(scripts []*Script) []*Measurement {
@@ -76,7 +78,7 @@ func runScripts(scripts []*Script) []*Measurement {
 		go func(script *Script) {
 			start := time.Now()
 			success := 0
-			err := runScript(script)
+			result, err := runScript(script)
 			duration := time.Since(start).Seconds()
 
 			if err == nil {
@@ -90,6 +92,7 @@ func runScripts(scripts []*Script) []*Measurement {
 				Script:   script,
 				Duration: duration,
 				Success:  success,
+				Result:   result,
 			}
 		}(script)
 	}
@@ -143,6 +146,7 @@ func scriptRunHandler(w http.ResponseWriter, r *http.Request, config *Config) {
 	for _, measurement := range measurements {
 		fmt.Fprintf(w, "script_duration_seconds{script=\"%s\"} %f\n", measurement.Script.Name, measurement.Duration)
 		fmt.Fprintf(w, "script_success{script=\"%s\"} %d\n", measurement.Script.Name, measurement.Success)
+		fmt.Fprintf(w, "script_result{script=\"%s\"} %d\n", measurement.Script.Name, measurement.Result)
 	}
 }
 
@@ -182,7 +186,7 @@ func main() {
 		}
 	}
 
-	http.Handle("/metrics", prometheus.Handler())
+	http.Handle("/metrics", promhttp.Handler())
 
 	http.HandleFunc("/probe", func(w http.ResponseWriter, r *http.Request) {
 		scriptRunHandler(w, r, &config)

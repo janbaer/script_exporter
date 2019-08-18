@@ -1,12 +1,12 @@
 # Script Exporter
 
-GitHub: https://github.com/adhocteam/script_exporter
+GitHub: https://github.com/janbaer/script_exporter
 
 Prometheus exporter written to execute and collect metrics on script exit status
 and duration. Designed to allow the execution of probes where support for the
 probe type wasn't easily configured with the Prometheus blackbox exporter.
 
-Minimum supported Go Version: 1.7.3
+This is a forked version of the original version from *adhocteam/script_exporter* It extends the functionality of the exporter with parsing the stdout output of the script and writing it back to the exporter as *script_result*
 
 ## Sample Configuration
 
@@ -21,6 +21,9 @@ scripts:
   - name: timeout
     script: sleep 5
     timeout: 1
+
+  - name: echo
+    script: echo "123"
 ```
 
 ## Running
@@ -49,11 +52,12 @@ handler:
 
 To execute a script, use the `name` parameter to the `/probe` endpoint:
 
-`$ curl http://localhost:9172/probe?name=failure`
+`$ curl http://localhost:9172/probe?name=echo`
 
 ```
-script_duration_seconds{script="failure"} 2.008337
-script_success{script="failure"} 0
+script_duration_seconds{script="echo"} 0.002218
+script_success{script="echo"} 0
+script_result{script="echo"} 123
 ```
 
 A regular expression may be specified with the `pattern` paremeter:
@@ -67,6 +71,9 @@ script_duration_seconds{script="failure"} 2.015021
 script_success{script="failure"} 0
 script_duration_seconds{script="success"} 5.013670
 script_success{script="success"} 1
+script_duration_seconds{script="echo"} 0.002218
+script_success{script="echo"} 1
+script_result{script="echo"} 123
 ```
 
 ## Design
