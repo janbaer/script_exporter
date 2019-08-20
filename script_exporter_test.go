@@ -46,10 +46,14 @@ func TestRunScripts(t *testing.T) {
 
 func TestScriptFilter(t *testing.T) {
 	t.Run("RequiredParameters", func(t *testing.T) {
-		_, err := scriptFilter(config.Scripts, "", "")
+		scripts, err := scriptFilter(config.Scripts, "", "")
 
-		if err.Error() != "`name` or `pattern` required" {
-			t.Errorf("Expected failure when supplying no parameters")
+		if err != nil {
+			t.Errorf("When no params are passed it should not return an error")
+		}
+
+		if len(scripts) != len(config.Scripts) {
+			t.Fatalf("Expected %d scripts, received %d", len(config.Scripts), len(scripts))
 		}
 	})
 

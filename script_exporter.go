@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -106,8 +105,7 @@ func runScripts(scripts []*Script) []*Measurement {
 
 func scriptFilter(scripts []*Script, name, pattern string) (filteredScripts []*Script, err error) {
 	if name == "" && pattern == "" {
-		err = errors.New("`name` or `pattern` required")
-		return
+		return scripts, nil
 	}
 
 	var patternRegexp *regexp.Regexp
@@ -134,18 +132,14 @@ func scriptRunHandler(w http.ResponseWriter, r *http.Request, config *Config) {
 	name := params.Get("name")
 	pattern := params.Get("pattern")
 
-	var measurements []*Measurement
+	scripts, err := scriptFilter(config.Scripts, name, pattern)
 
-	if name != "" || pattern != "" {
-		scripts, err := scriptFilter(config.Scripts, name, pattern)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		measurements = runScripts(scripts)
-	} else {
-		measurements = runScripts(config.Scripts)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
 	}
+
+	measurements := runScripts(scripts)
 
 	for _, measurement := range measurements {
 		fmt.Fprintf(w, "script_duration_seconds{script=\"%s\"} %f\n", measurement.Script.Name, measurement.Duration)

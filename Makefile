@@ -30,7 +30,7 @@ build:
 	@echo ">> building binary"
 	@GOOS=linux GOARCH=amd64 $(GO) build -o script-exporter script_exporter.go
 
-tarball:
+tarball: build
 	@echo ">> building release tarball"
 	@tar -czvf "script_exporter-$(VERSION).linux-amd64.tar.gz" script-exporter
 
