@@ -134,14 +134,18 @@ func scriptRunHandler(w http.ResponseWriter, r *http.Request, config *Config) {
 	name := params.Get("name")
 	pattern := params.Get("pattern")
 
-	scripts, err := scriptFilter(config.Scripts, name, pattern)
+	var measurements []*Measurement
 
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
+	if name != "" || pattern != "" {
+		scripts, err := scriptFilter(config.Scripts, name, pattern)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		measurements = runScripts(scripts)
+	} else {
+		measurements = runScripts(config.Scripts)
 	}
-
-	measurements := runScripts(scripts)
 
 	for _, measurement := range measurements {
 		fmt.Fprintf(w, "script_duration_seconds{script=\"%s\"} %f\n", measurement.Script.Name, measurement.Duration)

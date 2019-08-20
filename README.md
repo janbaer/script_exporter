@@ -33,11 +33,11 @@ You can run via docker with:
 ```
 docker run -d -p 9172:9172 --name script-exporter \
   -v `pwd`/config.yml:/etc/script-exporter/config.yml:ro \
-  adhocteam/script-exporter:master \
+  janbaer/script-exporter:master \
   -config.file=/etc/script-exporter/config.yml \
+  -config.shell="/bin/sh" \
   -web.listen-address=":9172" \
-  -web.telemetry-path="/metrics" \
-  -config.shell="/bin/sh"
+  -web.telemetry-path="/metrics" 
 ```
 
 You'll need to customize the docker image or use the binary on the host system
@@ -75,6 +75,8 @@ script_duration_seconds{script="echo"} 0.002218
 script_success{script="echo"} 1
 script_result{script="echo"} 123
 ```
+
+When no query params are passed, all scripts will be executed
 
 ## Design
 
